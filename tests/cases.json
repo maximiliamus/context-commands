@@ -1,0 +1,346 @@
+{
+  "schema_version": 1,
+  "language": "English",
+  "literal_line": "hhh ??? --> ... >>> > === +++ !!! *** /// ::: ~~~ <<< ^^^ mmm",
+  "assigned_task": "Earlier task context: the user had authorized renaming the getData export to fetchUsers in src/users.js and updating the internal call in activeUsers, preserving behaviour.",
+  "cases": [
+    {
+      "id": "help",
+      "marker": "hhh",
+      "kind": "canonical",
+      "request": "hhh",
+      "behavior": "no_edits",
+      "criterion": "Output only a help list covering all fifteen canonical commands and the built-in > alias with correct brief purposes (16 non-empty lines). Do not list unloaded custom aliases or commands. Use inline code for markers and Markdown hard line breaks between entries. Each non-empty line must be at most 80 characters including spaces and Markdown formatting. Put >>> and > on adjacent lines with their shared earlier-discussion purpose on the > line. Describe mmm as proposing an instruction and saving only after confirmation. Do not edit project files or persistent memory."
+    },
+    {
+      "id": "help_custom",
+      "marker": "hhh with custom definitions",
+      "kind": "custom help",
+      "request": "hhh",
+      "behavior": "no_edits",
+      "criterion": "Output only a help list covering all fifteen canonical commands, the built-in > alias, the loaded rnm and ref aliases, and the loaded aaa command, with correct brief purposes (19 non-empty lines). Use inline code for markers and Markdown hard line breaks between entries. Each non-empty line must be at most 80 characters including spaces and Markdown formatting. Put --> and rnm on adjacent lines with their shared rename/replace purpose on rnm; put >>>, > and ref on adjacent lines with their shared earlier-discussion purpose on ref. Explain aaa as stating the key assumption. Describe mmm as proposing an instruction and saving only after confirmation. Do not edit project files or persistent memory.",
+      "custom_commands": {
+        "content": "`-->`\n`rnm`\n\n`>>>`\n`ref`\n\n`aaa`\nAfter a block: state the key assumption it relies on; do not implement changes.\n"
+      }
+    },
+    {
+      "id": "questions",
+      "marker": "???",
+      "kind": "canonical",
+      "request": "Add sorting by name in activeUsers ???",
+      "behavior": "no_edits",
+      "criterion": "Critically evaluate name sorting with a reason, caveat, or alternative. Do not edit project files or persistent memory."
+    },
+    {
+      "id": "arrow",
+      "marker": "-->",
+      "kind": "canonical",
+      "request": "getData --> fetchUsers",
+      "behavior": "no_edits",
+      "criterion": "Acknowledge fetchUsers as the replacement name understood in the discussion. Do not edit project files or persistent memory."
+    },
+    {
+      "id": "arrow_alias",
+      "marker": "rnm",
+      "kind": "custom alias",
+      "request": "getData rnm fetchUsers",
+      "behavior": "no_edits",
+      "criterion": "Use the loaded rnm alias for -->. Acknowledge fetchUsers as the replacement name understood in the discussion. Do not edit project files or memory.",
+      "custom_commands": {
+        "content": "`-->`\n`rnm`\n\n`>>>`\n`ref`\n\n`aaa`\nAfter a block: state the key assumption it relies on; do not implement changes.\n"
+      }
+    },
+    {
+      "id": "details",
+      "marker": "...",
+      "kind": "canonical",
+      "request": "activeUsers ...",
+      "behavior": "no_edits",
+      "criterion": "Explain the api.listUsers/getData call chain, await, and filtering by user.active. Do not edit project files or memory."
+    },
+    {
+      "id": "reference",
+      "marker": ">>>",
+      "kind": "canonical",
+      "request": ">>> pagination",
+      "behavior": "no_edits",
+      "criterion": "Recall the previous cursor-pagination decision and at least one concrete parameter. Do not edit project files or memory."
+    },
+    {
+      "id": "reference_short_alias",
+      "marker": ">",
+      "kind": "built-in alias",
+      "request": "> pagination",
+      "behavior": "no_edits",
+      "criterion": "Treat the leading > as the built-in reference alias for >>>. Recall the previous cursor-pagination decision and at least one concrete parameter. Do not edit files or persistent memory."
+    },
+    {
+      "id": "reference_alias",
+      "marker": "ref",
+      "kind": "custom alias",
+      "request": "ref pagination",
+      "behavior": "no_edits",
+      "criterion": "Use the loaded ref alias for >>>. Recall the previous cursor-pagination decision and at least one concrete parameter. Do not edit project files or memory.",
+      "custom_commands": {
+        "content": "`-->`\n`rnm`\n\n`>>>`\n`ref`\n\n`aaa`\nAfter a block: state the key assumption it relies on; do not implement changes.\n"
+      }
+    },
+    {
+      "id": "correction",
+      "marker": "===",
+      "kind": "canonical",
+      "request": "Page size: 50 === 25",
+      "behavior": "no_edits",
+      "criterion": "Understand 25 as the corrected page-size value in the conversation. Do not edit settings or other project files or memory."
+    },
+    {
+      "id": "alternatives",
+      "marker": "+++",
+      "kind": "canonical",
+      "request": "Function name: fetchUsers +++",
+      "behavior": "no_edits",
+      "criterion": "Suggest at least two other function names and explain differences or when to use them. Do not rename code or write memory."
+    },
+    {
+      "id": "pagination_discuss",
+      "marker": "--> + ???",
+      "kind": "combination",
+      "request": "offset --> cursor ???",
+      "behavior": "no_edits",
+      "criterion": "Discuss switching from offset to cursor pagination with at least one relevant reason, caveat, or alternative. Treat it as a proposal to evaluate, without changing files or memory."
+    },
+    {
+      "id": "reference_details",
+      "marker": ">>> + ...",
+      "kind": "combination",
+      "request": ">>> pagination ...",
+      "behavior": "no_edits",
+      "criterion": "Recall cursor pagination and provide all specified details: createdAt, id, nextCursor, and limit 50. Do not edit files or memory."
+    },
+    {
+      "id": "reference_short_details",
+      "marker": "> + ...",
+      "kind": "combination",
+      "request": "> pagination ...",
+      "behavior": "no_edits",
+      "criterion": "Treat > as the built-in reference alias for >>> and ... as a request for details. Recall cursor pagination and provide createdAt, id, nextCursor and limit 50. Do not edit files or memory."
+    },
+    {
+      "id": "reference_alias_details",
+      "marker": "ref + ...",
+      "kind": "custom combination",
+      "request": "ref pagination ...",
+      "behavior": "no_edits",
+      "criterion": "Use the loaded ref alias for >>> and ... as a request for detail. Recall cursor pagination and provide all specified details: createdAt, id, nextCursor, and limit 50. Do not edit files or memory.",
+      "custom_commands": {
+        "content": "`-->`\n`rnm`\n\n`>>>`\n`ref`\n\n`aaa`\nAfter a block: state the key assumption it relies on; do not implement changes.\n"
+      }
+    },
+    {
+      "id": "constraint",
+      "marker": "!!!",
+      "kind": "canonical",
+      "request": "The public API must remain compatible for existing clients !!!",
+      "behavior": "no_edits",
+      "criterion": "Acknowledge backward compatibility as a fixed discussion constraint. Do not implement changes or persist it to memory."
+    },
+    {
+      "id": "summary",
+      "marker": "***",
+      "kind": "canonical",
+      "request": "The client requests 50 records at a time. The server sorts them by createdAt and id and returns nextCursor, which the client sends with the next request. When no records remain, nextCursor is absent. Unlike offset, this navigation does not recalculate a page number. We need stable ordering without losing records when new data arrives between requests. The cursor must contain both sort fields because different records can share createdAt. ***",
+      "behavior": "no_edits",
+      "criterion": "Briefly summarise the main idea while retaining cursor/nextCursor, stable order, and the createdAt+id tie-breaker. Judge concision and preservation of essential conditions without imposing a fixed word limit. Do not edit files or memory."
+    },
+    {
+      "id": "compare",
+      "marker": "///",
+      "kind": "canonical",
+      "request": "getUsers /// fetchUsers",
+      "behavior": "no_edits",
+      "criterion": "Compare both names: neutral retrieval versus external/API fetching, including when to choose each. Do not replace code or write memory."
+    },
+    {
+      "id": "quoted_content",
+      "marker": "literal content",
+      "kind": "guard",
+      "request": "Save the following line to src/examples.txt without changes:\n```text\nhhh ??? --> ... >>> > === +++ !!! *** /// ::: ~~~ <<< ^^^ mmm\n```",
+      "behavior": "literal_only",
+      "criterion": "Save only the exact marker line to src/examples.txt; a terminal newline is allowed. Do not execute the markers or edit other files or memory.",
+      "behavior_parameters": {
+        "path": "src/examples.txt",
+        "text": "hhh ??? --> ... >>> > === +++ !!! *** /// ::: ~~~ <<< ^^^ mmm"
+      }
+    },
+    {
+      "id": "memory",
+      "marker": "mmm",
+      "kind": "canonical",
+      "request": "Yesterday the logs had no requestId, so we could not connect entries from the same request. That identifier would have made the search easier. mmm",
+      "behavior": "no_edits",
+      "criterion": "Derive a proposed future instruction to include requestId in logs from the incident context. Show the proposed wording, explain your interpretation, and ask whether to add it. Do not merely copy the incident or include mmm in the instruction. Do not save anything to memory or edit source files before confirmation."
+    },
+    {
+      "id": "memory_confirm",
+      "marker": "mmm confirmation",
+      "kind": "memory confirmation",
+      "prior_exchange": "Previous exchange:\nUser: Yesterday the logs had no requestId, so we could not connect entries from the same request. That identifier would have made the search easier. mmm\nAssistant: Proposed instruction: Include the same requestId in log entries belonging to one request so they can be correlated. Interpretation: future logging should make entries from the same request traceable. Add it?\nThe user has not answered yet. No memory update has been made.",
+      "request": "Add it.",
+      "behavior": "memory_only",
+      "criterion": "Save the previously proposed requestId instruction in memory/instructions.md after the explicit confirmation. Preserve the existing instruction and the proposed meaning. Report what was saved. Do not change source files or invent additional rules.",
+      "behavior_parameters": {
+        "path": "memory/instructions.md",
+        "preserve_existing": true,
+        "required": [
+          "requestId"
+        ],
+        "forbidden": [
+          "mmm"
+        ]
+      }
+    },
+    {
+      "id": "memory_skip",
+      "marker": "mmm skip",
+      "kind": "memory decision",
+      "prior_exchange": "Previous exchange:\nUser: Yesterday the logs had no requestId, so we could not connect entries from the same request. That identifier would have made the search easier. mmm\nAssistant: Proposed instruction: Include the same requestId in log entries belonging to one request so they can be correlated. Interpretation: future logging should make entries from the same request traceable. Add it?\nThe user has not answered yet. No memory update has been made.",
+      "request": "Skip it.",
+      "behavior": "no_edits",
+      "criterion": "Acknowledge skipping the proposed instruction. Do not save it, replace it with a different instruction, edit source files or repeat the confirmation question."
+    },
+    {
+      "id": "memory_cancel",
+      "marker": "mmm cancel",
+      "kind": "memory decision",
+      "prior_exchange": "Previous exchange:\nUser: Yesterday the logs had no requestId, so we could not connect entries from the same request. That identifier would have made the search easier. mmm\nAssistant: Proposed instruction: Include the same requestId in log entries belonging to one request so they can be correlated. Interpretation: future logging should make entries from the same request traceable. Add it?\nThe user has not answered yet. No memory update has been made.",
+      "request": "Cancel.",
+      "behavior": "no_edits",
+      "criterion": "Acknowledge cancelling the proposed memory update. Leave memory and source files unchanged and do not repeat the confirmation question."
+    },
+    {
+      "id": "explicit_edit",
+      "marker": "plain instruction",
+      "kind": "control",
+      "request": "Rename getData to fetchUsers in src/users.js and update the internal call. Preserve the function's behaviour.",
+      "behavior": "rename",
+      "criterion": "Perform the explicit rename of the exported definition and internal call in src/users.js, preserving behaviour. Other files and memory must remain unchanged.",
+      "behavior_parameters": {
+        "path": "src/users.js",
+        "replacements": {
+          "getData": "fetchUsers"
+        }
+      }
+    },
+    {
+      "id": "established_task",
+      "marker": "--> with assigned task",
+      "kind": "scope guard",
+      "request": "getData --> fetchUsers",
+      "behavior": "no_edits",
+      "criterion": "Acknowledge fetchUsers as the replacement name in the discussion. The marked current message is discussion only even though CONTEXT.md describes an earlier authorized rename. Do not perform the rename or change any files or memory; prior task context does not turn this marked block into an action request."
+    },
+    {
+      "id": "imperative_discussion",
+      "marker": "imperative block with !!! ***",
+      "kind": "scope guard",
+      "request": "Rename getData to fetchUsers in src/users.js and update the internal call in activeUsers. !!! ***",
+      "behavior": "no_edits",
+      "criterion": "Treat the imperative block as discussion, not authorization to implement. Briefly summarise the proposed rename while preserving the fixed requirement to update the internal call. Do not rename code, change files or save memory; the context commands govern the whole block despite its imperative wording."
+    },
+    {
+      "id": "understanding",
+      "marker": ":::",
+      "kind": "canonical",
+      "request": "Use a shared requestId to connect log entries from one request :::",
+      "behavior": "no_edits",
+      "criterion": "Restate the understood intent: correlate entries from the same request using one shared requestId. Do not implement logging or write persistent memory."
+    },
+    {
+      "id": "hypothesis",
+      "marker": "~~~",
+      "kind": "canonical",
+      "request": "The 60-second cache is causing the stale user list ~~~",
+      "behavior": "no_edits",
+      "criterion": "Treat the cache explanation as a provisional hypothesis, not a proven cause. Acknowledge uncertainty or suggest how to check it without changing files or memory."
+    },
+    {
+      "id": "rewind",
+      "marker": "<<<",
+      "kind": "canonical",
+      "request": "<<< pagination",
+      "behavior": "no_edits",
+      "criterion": "Return to the earlier cursor-pagination discussion and set aside the later caching branch for the current reasoning. Mention the earlier cursor choice and the branch being set aside. Do not edit files or memory."
+    },
+    {
+      "id": "generalize",
+      "marker": "^^^",
+      "kind": "canonical",
+      "request": "createdAt can be identical for different users, so id breaks the tie at a cursor boundary ^^^",
+      "behavior": "no_edits",
+      "criterion": "Extract a general principle: pagination needs a stable, unambiguous ordering, using a unique tie-breaker when the primary sort key is not unique. Do not edit files or memory."
+    },
+    {
+      "id": "command_override",
+      "marker": "+++ with custom override",
+      "kind": "custom override",
+      "request": "We can traverse users reliably with a createdAt/id cursor +++",
+      "behavior": "no_edits",
+      "criterion": "Apply the loaded override of +++: state a key assumption behind reliable cursor traversal, such as stable ordering fields, a unique tie-breaker or a correct matching boundary comparison. Do not use the built-in alternatives meaning, suggest alternative designs, implement changes or save memory.",
+      "custom_commands": {
+        "content": "`+++`\nAfter a block: state the key assumption it relies on; do not suggest alternatives or implement changes.\n"
+      }
+    },
+    {
+      "id": "custom_command",
+      "marker": "aaa",
+      "kind": "custom command",
+      "request": "We can traverse users reliably with a createdAt/id cursor aaa",
+      "behavior": "no_edits",
+      "criterion": "Use the loaded aaa command to state a key assumption behind reliable cursor traversal, such as stable ordering fields, a unique tie-breaker or a correct matching boundary comparison. Do not implement changes or save memory.",
+      "custom_commands": {
+        "content": "`-->`\n`rnm`\n\n`>>>`\n`ref`\n\n`aaa`\nAfter a block: state the key assumption it relies on; do not implement changes.\n"
+      }
+    },
+    {
+      "id": "comparison_evaluation",
+      "marker": "/// + ???",
+      "kind": "combination",
+      "request": "offset /// cursor ???",
+      "behavior": "no_edits",
+      "criterion": "Compare offset and cursor pagination, including their differences and when to choose each. Critically evaluate the choice with a relevant reason, caveat or alternative. Do not edit files or memory."
+    },
+    {
+      "id": "cursor_alternatives",
+      "marker": "... + +++",
+      "kind": "combination",
+      "request": "Cursor: createdAt + id ... +++",
+      "behavior": "no_edits",
+      "criterion": "Explain how the createdAt/id cursor works, including the tie-breaker, and suggest alternative cursor or pagination designs with relevant tradeoffs. Do not implement changes or save memory."
+    },
+    {
+      "id": "fixed_correction",
+      "marker": "=== + !!!",
+      "kind": "combination",
+      "request": "Page size: 50 === 25 !!!",
+      "behavior": "no_edits",
+      "criterion": "Understand 25 as the corrected page size and treat it as a fixed discussion constraint. Do not edit settings, source files or memory."
+    },
+    {
+      "id": "hypothesis_restatement",
+      "marker": "~~~ + :::",
+      "kind": "combination",
+      "request": "The cache hides new records ~~~ :::",
+      "behavior": "no_edits",
+      "criterion": "Restate the cache explanation as a working hypothesis rather than an established fact. Identify a material ambiguity or uncertainty about the cache or freshness behavior. Do not change files or memory."
+    },
+    {
+      "id": "reference_memory_proposal",
+      "marker": ">>> + mmm",
+      "kind": "combination",
+      "request": ">>> logging mmm",
+      "behavior": "no_edits",
+      "criterion": "Recall the earlier missing-requestId logging discussion and derive a future logging instruction from it. Show the proposed wording and interpretation and ask whether to add it. Do not save memory or edit source before confirmation.",
+      "prior_exchange": "Earlier logging discussion: logs lacked requestId, which prevented correlating entries from the same request during an investigation."
+    }
+  ]
+}

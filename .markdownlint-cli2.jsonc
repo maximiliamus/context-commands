@@ -1,0 +1,9 @@
+{
+  "globs": ["**/*.md"],
+  // Benchmark archives preserve exact responses and hashed artifacts.
+  "ignores": [".benchmark/**", "tests/results/**", "node_modules/**"],
+  "config": {
+    // Keep executable commands and example prompts ready to copy.
+    "MD013": { "code_blocks": false }
+  }
+}
