@@ -311,6 +311,7 @@ try {
         examples = (
             versioned(body, self.available_version),
             f"---\ntitle: local\nversion: '{self.available_version}'\n---\n\n" + body,
+            f"---\nversion: {self.available_version}\nupdate_instructions: https://example.test/local-update\n---\n\n" + body,
             f'---\r\nversion : "{self.available_version}" # installed\r\nother: value\r\n---\r\n\r\n' + body,
         )
         for shell in self.shells:

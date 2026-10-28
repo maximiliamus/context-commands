@@ -1,5 +1,6 @@
 ---
-version: 0.2.0
+version: 0.2.1
+update_instructions: https://github.com/maximiliamus/context-commands#update
 ---
 
 # Context Commands

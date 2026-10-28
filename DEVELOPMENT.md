@@ -67,10 +67,11 @@ Updates replace the content before the marker and preserve everything after it.
 
 Include the release version in YAML front matter in the distributed file. Keep
 it consistent with the release tag, and change it whenever distributed
-definitions change. Installation and update
-decisions compare only the `version` values; matching versions leave the file
-untouched even when its body has local edits. Do not use body comparisons or
-content hashes to decide whether to update.
+definitions change. Link to the update instructions there so an agent reading
+an installed copy can find them. Installation and update decisions compare only
+the `version` values; matching versions leave the file untouched even when its
+body has local edits. Do not use body comparisons or content hashes to decide
+whether to update.
 
 Keep command definitions and examples in that reference, setup and usage entry
 points in [README.md](README.md), and design rationale here. Keep instructions

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2026-10-29
+
+### Added
+
+- A link to update instructions in the installed commands file.
+
 ## [0.2.0] - 2026-10-29
 
 ### Added
