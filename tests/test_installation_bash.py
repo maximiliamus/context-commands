@@ -7,7 +7,7 @@ import stat
 import subprocess
 import unittest
 
-from test_installation import InstallationCases, MARKER, REPO, URL
+from test_installation import InstallationCases, MARKER, REPO, URL, versioned
 
 
 def find_bash():
@@ -128,7 +128,7 @@ fi
             with self.subTest(mode=oct(mode)):
                 folder = self.project()
                 target = folder / "CONTEXT_COMMANDS.md"
-                target.write_bytes(("# Context Commands\n" + MARKER + "\n").encode("utf-8"))
+                target.write_bytes(versioned("# Context Commands\n" + MARKER + "\n").encode("utf-8"))
                 target.chmod(mode)
                 self.invoke(BASH, self.update_script, folder, file_umask="077")
                 self.assertEqual(stat.S_IMODE(target.stat().st_mode), mode)
@@ -136,19 +136,20 @@ fi
     def test_update_supports_bsd_stat_fallback(self):
         folder = self.project()
         target = folder / "CONTEXT_COMMANDS.md"
-        target.write_bytes(("# Context Commands\n" + MARKER + "\n").encode("utf-8"))
+        target.write_bytes(versioned("# Context Commands\n" + MARKER + "\n").encode("utf-8"))
         expected_mode = stat.S_IMODE(target.stat().st_mode)
         self.invoke(BASH, self.update_script, folder, bsd_stat_only=True)
         self.assertEqual(stat.S_IMODE(target.stat().st_mode), expected_mode)
 
     def test_failed_replacement_preserves_original_and_cleans_temporary_file(self):
         folder = self.project()
-        original = ("# Context Commands\nOld content.\n" + MARKER +
-                    "\n\n`mine`\nKeep my command.\n").encode("utf-8")
+        original = versioned("# Context Commands\nOld content.\n" + MARKER +
+                             "\n\n`mine`\nKeep my command.\n").encode("utf-8")
         target = folder / "CONTEXT_COMMANDS.md"
         target.write_bytes(original)
         result = self.invoke(BASH, self.update_script, folder, success=False, fail_replace=True)
         self.assertIn(b"Simulated replacement failure", result.stderr)
+        self.assertIn(b"Could not update CONTEXT_COMMANDS.md", result.stderr)
         self.assertEqual(target.read_bytes(), original)
 
     def test_readme_does_not_execute_incomplete_script_download(self):
@@ -156,7 +157,7 @@ fi
             with self.subTest(script=script):
                 folder = self.project(instructions=False)
                 target = folder / "CONTEXT_COMMANDS.md"
-                original = ("# Context Commands\nOld content.\n" + MARKER + "\n").encode("utf-8")
+                original = versioned("# Context Commands\nOld content.\n" + MARKER + "\n").encode("utf-8")
                 if script == self.update_script:
                     target.write_bytes(original)
                 self.invoke(BASH, script, folder, success=False, via_url=True, fail_script_download=True)

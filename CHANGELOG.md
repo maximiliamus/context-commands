@@ -1,6 +1,22 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0] - 2026-10-29
+
+### Added
+
+- `;;;` to check the operator's understanding.
+- Benchmark selection by command marker, including related combinations and
+  follow-up scenarios.
+
+### Changed
+
+- Installation and updates compare only version values. Matching versions leave
+  the installed file untouched, including local edits and modification time.
+- An installed file without a version is updated while preserving its custom
+  commands.
+- Install and update messages explain the result, next steps, and common errors.
+- Context commands put the chat back in discussion mode until an explicit
+  action request or confirmation of a specific proposed action.
 
 ## [0.1.0] - 2026-10-28
 

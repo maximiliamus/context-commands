@@ -23,13 +23,30 @@ Read tests/BENCHMARK.md and run the benchmark with your current agent configurat
 
 Local runs belong in .benchmark/ and are ignored by Git.
 
-The default run has 74 trials: 37 scenarios with and without definitions. It
-covers all fifteen built-in commands, the built-in > alias, custom aliases and a
+To test selected commands, ask your agent to follow the benchmark procedure and
+name the markers, for example `;;;` and `:::`. To prepare the same selection
+directly from the repository root:
+
+```text
+python tests/benchmark.py prepare --output .benchmark/selected --command ';;;' --command ':::'
+```
+
+Repeat `--command` for each marker. Quote shell metacharacters; for `-->`, use
+`'--command=-->'`. Selection includes related combinations, aliases and
+follow-ups. Custom aliases in the supplied fixtures (`rnm` and `ref`) select
+their corresponding built-in commands. `--cases` selects exact scenario IDs and
+cannot be combined with `--command`.
+
+The default run has 98 trials: 49 scenarios with and without definitions. It
+covers all sixteen built-in commands, the built-in > alias, custom aliases and a
 new custom command, an override of a built-in command, combinations, quoted
 content, memory confirmation, skip and cancel, and explicit-action controls.
-Marked imperative blocks and blocks with prior task context must remain
-discussion; a separate unmarked action request may change files.
-Base help has 16 entries; loaded custom help has 19 in the supplied test
+It checks agreement after discussion, mode persistence, exit and re-entry,
+explicit requests including "Do it", confirmations, already started work,
+and cancelled tasks.
+Marked imperative blocks remain discussion; a separate unmarked action request
+may change files.
+Base help has 17 entries; loaded custom help has 20 in the supplied test
 configuration. Help checks cover purposes, adjacent aliases, inline code,
 Markdown hard line breaks and the 80-character raw-line limit. All eight
 documented grouping patterns are covered.
@@ -43,7 +60,7 @@ python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
 The harness tests check preparation, protected inputs, allowed file behavior,
-captured finals after failed saves, Windows CRLF handling, and export integrity.
+captured final responses, Windows CRLF handling, and export integrity.
 They use clearly labelled temporary fixtures under the ignored .benchmark/
 directory; they are not model responses or benchmark scores.
 
@@ -58,7 +75,12 @@ fixtures, without network access. URL invocations use the actual commands from
 README.md.
 The checks cover:
 
-- Installation in an empty project and refusal to overwrite an existing file.
+- Installation in an empty project and refusal to overwrite a different version.
+- User-facing messages for installation, update and common errors.
+- Equal versions skip installation and updates despite body edits, preserving
+  file identity and modification time, including a locked Windows file.
+- An unknown installed version is updated while preserving custom commands;
+  invalid version metadata and a missing available version are rejected.
 - Updates with and without agent instruction files, including multiple versions.
 - Exact preservation of custom commands, Unicode, whitespace and line endings.
 - Empty custom sections and repeated updates.
@@ -97,14 +119,16 @@ Each case declares its file-check parameters in behavior_parameters: the target
 path, rename replacements, literal text, or memory requirements. Memory checks
 preserve existing non-empty lines. Missing parameters are rejected rather than
 replaced with assumed fixture values. Content receives a separate review.
+The continuing-work and mode-exit cases permit either no edits or the
+authorized rename.
 Export normalizes native paths, JSON escaping and file URIs, including Windows
 case variations, without matching similarly named sibling directories.
 
-If saving response.md fails but a participant completes, preserve the exact
-final response and completed state in receipt.json. The collector includes that
-captured final with response_source=participant_final and response_saved=false;
-file checks fail, and the report links the receipt. It never creates a
-substitute response.md.
+For new runs, record each completed participant's exact final response in its
+receipt.json. The collector includes that final with
+response_source=participant_final and checks project files independently; it
+does not create response.md. Older runs that required a response file retain
+their original file-check behavior.
 
 The reference exporter requires a complete graded run with the current
 definition snapshot. It rejects changed answers or files, altered file

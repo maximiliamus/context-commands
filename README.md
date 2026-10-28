@@ -12,9 +12,9 @@ Let's cache the user list for 60 seconds ???
 ```
 
 This asks the agent to critically assess the idea, discuss trade-offs, and suggest
-alternatives. Context commands keep the message in discussion mode. To have the
-agent implement an agreed change, send a separate explicit request without a
-context command.
+alternatives. A context command puts the chat in discussion mode, which continues
+across messages until you authorize a specific action in a separate message
+without a context command.
 
 See [CONTEXT_COMMANDS.md](CONTEXT_COMMANDS.md#context-commands) for all commands,
 their definitions, and examples of combining them.

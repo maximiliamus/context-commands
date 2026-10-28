@@ -35,12 +35,13 @@ if (hashlib.sha256(manifest["rules"].encode("utf-8")).hexdigest() != manifest["r
 for row in results["trials"]:
     trial = next(trial for trial in manifest["trials"] if trial["id"] == row["id"])
     folder = source / trial["folder"]
-    response = participant_response(folder)
+    response = participant_response(folder, prefer_final=manifest.get("response_recording") == "final")
     if (response is None or response["sha256"] != row["response_sha256"]
             or response["source"] != row["response_source"]
             or response["saved"] != row["response_saved"]):
         raise SystemExit(f"Response changed after the report: {row['id']}")
-    if not response["saved"] and (row["behavior_pass"] or row["full_pass"]):
+    if (not response["saved"] and manifest.get("response_recording") != "final"
+            and (row["behavior_pass"] or row["full_pass"])):
         raise SystemExit(f"Missing response file cannot pass file checks: {row['id']}")
     for name, expected in {**row["source_hashes_after"], **row["protected_hashes_after"]}.items():
         path = folder / name

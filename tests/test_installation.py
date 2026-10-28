@@ -15,6 +15,10 @@ URL = "https://raw.githubusercontent.com/maximiliamus/context-commands/master/CO
 SHELLS = [path for name in ("pwsh", "powershell") if (path := shutil.which(name))]
 
 
+def versioned(body, version="0.0.0"):
+    return f"---\nversion: {version}\n---\n\n" + body
+
+
 class InstallationCases:
     def setUp(self):
         self.scratch = (REPO / ".benchmark").resolve()
@@ -23,6 +27,7 @@ class InstallationCases:
         self.root = Path(self.temporary.name).resolve()
         self.download = self.root / "download.md"
         self.download.write_bytes((REPO / "CONTEXT_COMMANDS.md").read_bytes())
+        self.available_version = re.search(r"^version: (.+)$", self.download.read_text(encoding="utf-8"), re.M)[1]
         readme = (REPO / "README.md").read_text(encoding="utf-8")
         commands = re.findall(r"## (Install|Update)\n.*?```" + self.language + r"\n(.*?)\n```", readme, re.S)
         self.assertEqual([name for name, _ in commands], ["Install", "Update"])
@@ -96,7 +101,9 @@ try {
         for shell in self.shells:
             with self.subTest(shell=shell):
                 folder = self.project(instructions=False)
-                self.invoke(shell, self.install_script, folder, via_url=True)
+                result = self.invoke(shell, self.install_script, folder, via_url=True)
+                self.assertIn(f"version {self.available_version}".encode(), result.stdout)
+                self.assertIn(b"@CONTEXT_COMMANDS.md", result.stdout)
                 self.assertEqual((folder / "CONTEXT_COMMANDS.md").read_bytes(), self.download.read_bytes())
                 self.assertEqual({path.name for path in folder.iterdir()}, {"CONTEXT_COMMANDS.md"})
 
@@ -106,10 +113,12 @@ try {
                 folder = self.project(instructions=False)
                 tail = "\n\n`mine`\nKeep my local command.\n"
                 target = folder / "CONTEXT_COMMANDS.md"
-                target.write_text("# Context Commands\nOld main content.\n" + MARKER + tail,
+                target.write_text(versioned("# Context Commands\nOld main content.\n" + MARKER + tail),
                                   encoding="utf-8", newline="\n")
                 upstream = self.download.read_text(encoding="utf-8").partition(MARKER)[0] + MARKER
-                self.invoke(shell, self.update_script, folder, via_url=True)
+                result = self.invoke(shell, self.update_script, folder, via_url=True)
+                self.assertIn(f"version {self.available_version}".encode(), result.stdout)
+                self.assertIn(b"custom commands were preserved", result.stdout)
                 self.assertEqual(target.read_bytes(), (upstream + tail).encode("utf-8"))
                 self.assertEqual({path.name for path in folder.iterdir()}, {"CONTEXT_COMMANDS.md"})
 
@@ -136,7 +145,8 @@ try {
                 tail = "\r\n\r\n`mine`\r\nСохрани мою команду.\r\n"
                 target.write_bytes(main + (MARKER + tail).encode("utf-8"))
                 for version in (2, 3):
-                    upstream = f"# Context Commands\n\nNew main content v{version}.\n\n" + MARKER
+                    upstream = versioned(f"# Context Commands\n\nNew main content v{version}.\n\n" + MARKER,
+                                         f"fixture-{version}")
                     self.download.write_bytes((upstream + "\n").encode("utf-8"))
                     self.invoke(shell, self.update_script, folder, via_url=True)
                     self.assertEqual(target.read_bytes(), (upstream + tail).encode("utf-8"))
@@ -161,7 +171,10 @@ try {
                 self.invoke(shell, self.install_script, folder, via_url=True)
                 expected = self.download.read_bytes()
                 self.assertEqual(target.read_bytes(), expected)
-                self.invoke(shell, self.install_script, folder, success=False)
+                expected = versioned("# Context Commands\nOlder installed version.\n" + MARKER + "\n").encode("utf-8")
+                target.write_bytes(expected)
+                result = self.invoke(shell, self.install_script, folder, success=False)
+                self.assertIn(b"https://github.com/maximiliamus/context-commands#update", result.stderr)
                 self.assertEqual(target.read_bytes(), expected)
 
     def test_update_preserves_exact_tail_and_is_repeatable(self):
@@ -172,10 +185,11 @@ try {
                     tail = ending + ending + ending.join([
                         "`-->`", "`rnm`", "", "`aaa`", "После блока: назови допущение. 🧭  ",
                         "", "`cash`", "Keep $1, $&, backticks `x` and trailing spaces.  "])
-                    current = ("# Context Commands\n\nOld built-in content.\n\n" + MARKER + tail).encode("utf-8")
+                    current = versioned("# Context Commands\n\nOld built-in content.\n\n" + MARKER + tail).encode("utf-8")
                     target = folder / "CONTEXT_COMMANDS.md"
                     target.write_bytes(current)
-                    upstream = "# Context Commands\n\nNew built-in content.\n\n" + MARKER
+                    upstream = versioned("# Context Commands\n\nNew built-in content.\n\n" + MARKER,
+                                         self.available_version)
                     self.download.write_bytes((upstream + "\n\n`remote-only`\nDo not inherit.\n").encode("utf-8"))
                     expected = (upstream + tail).encode("utf-8")
                     self.invoke(shell, self.update_script, folder, via_url=True)
@@ -189,7 +203,7 @@ try {
                 with self.subTest(shell=shell, tail=repr(tail)):
                     folder = self.project()
                     target = folder / "CONTEXT_COMMANDS.md"
-                    target.write_bytes(("# Context Commands\nOld\n" + MARKER + tail).encode("utf-8"))
+                    target.write_bytes(versioned("# Context Commands\nOld\n" + MARKER + tail).encode("utf-8"))
                     upstream = self.download.read_text(encoding="utf-8").partition(MARKER)[0] + MARKER
                     self.invoke(shell, self.update_script, folder)
                     self.assertEqual(target.read_bytes(), (upstream + tail).encode("utf-8"))
@@ -199,11 +213,13 @@ try {
             with self.subTest(shell=shell):
                 folder = self.project()
                 target = folder / "CONTEXT_COMMANDS.md"
-                self.invoke(shell, self.install_script, folder, success=False, fail_download=True)
+                result = self.invoke(shell, self.install_script, folder, success=False, fail_download=True)
+                self.assertIn(b"Could not download CONTEXT_COMMANDS.md", result.stderr)
                 self.assertFalse(target.exists())
-                original = ("# Context Commands\n" + MARKER + "\n\n`aaa`\nMy command.\n").encode("utf-8")
+                original = versioned("# Context Commands\n" + MARKER + "\n\n`aaa`\nMy command.\n").encode("utf-8")
                 target.write_bytes(original)
-                self.invoke(shell, self.update_script, folder, success=False, fail_download=True)
+                result = self.invoke(shell, self.update_script, folder, success=False, fail_download=True)
+                self.assertIn(b"Could not download CONTEXT_COMMANDS.md", result.stderr)
                 self.assertEqual(target.read_bytes(), original)
 
     def test_install_accepts_utf8_bom_download(self):
@@ -216,14 +232,15 @@ try {
 
     def test_update_accepts_bom_and_preserves_custom_tail(self):
         tail = "\r\n\r\n`mine`\r\nKeep my Unicode rule: \u2713.\r\n"
-        upstream = b"\xef\xbb\xbf" + ("# Context Commands\nNew reference.\n" + MARKER).encode("utf-8")
+        upstream = b"\xef\xbb\xbf" + versioned("# Context Commands\nNew reference.\n" + MARKER,
+                                               self.available_version).encode("utf-8")
         self.download.write_bytes(upstream + b"\n")
         for shell in self.shells:
             for prefix in ("# Context Commands\nOld reference.\n", ""):
                 with self.subTest(shell=shell, prefix=prefix):
                     folder = self.project()
                     target = folder / "CONTEXT_COMMANDS.md"
-                    target.write_bytes(b"\xef\xbb\xbf" + (prefix + MARKER + tail).encode("utf-8"))
+                    target.write_bytes(b"\xef\xbb\xbf" + versioned(prefix + MARKER + tail).encode("utf-8"))
                     self.invoke(shell, self.update_script, folder)
                     self.assertEqual(target.read_bytes(), upstream + tail.encode("utf-8"))
 
@@ -249,17 +266,24 @@ try {
 
     def test_invalid_download_does_not_create_or_change_file(self):
         for shell in self.shells:
-            for content in ("", "<html>Error page</html>\n", "# Context Commands\nMissing marker\n",
-                            "# Context Commands\n" + MARKER + "\n" + MARKER + "\n"):
+            for content in ("", "<html>Error page</html>\n", "# Context Commands\n" + MARKER + "\n",
+                            versioned("# Context Commands\n" + MARKER + "\n", ""),
+                            versioned("# Context Commands\n" + MARKER + "\n", "# pending"),
+                            "---\nversion: first\nversion: second\n---\n\n# Context Commands\n" + MARKER + "\n",
+                            versioned("# Context Commands\nMissing marker\n", self.available_version),
+                            versioned("# Context Commands\n" + MARKER + "\n" + MARKER + "\n",
+                                      self.available_version)):
                 with self.subTest(shell=shell, content=content):
                     self.download.write_text(content, encoding="utf-8")
                     folder = self.project()
                     target = folder / "CONTEXT_COMMANDS.md"
-                    self.invoke(shell, self.install_script, folder, success=False)
+                    result = self.invoke(shell, self.install_script, folder, success=False)
+                    self.assertIn(b"Downloaded CONTEXT_COMMANDS.md", result.stderr)
                     self.assertFalse(target.exists())
-                    original = ("# Context Commands\n" + MARKER + "\n`custom`\nPreserve.\n").encode("utf-8")
+                    original = versioned("# Context Commands\n" + MARKER + "\n`custom`\nPreserve.\n").encode("utf-8")
                     target.write_bytes(original)
-                    self.invoke(shell, self.update_script, folder, success=False)
+                    result = self.invoke(shell, self.update_script, folder, success=False)
+                    self.assertIn(b"Downloaded CONTEXT_COMMANDS.md", result.stderr)
                     self.assertEqual(target.read_bytes(), original)
 
     def test_missing_file_or_invalid_local_marker_is_rejected(self):
@@ -267,15 +291,73 @@ try {
             with self.subTest(shell=shell):
                 folder = self.project()
                 target = folder / "CONTEXT_COMMANDS.md"
-                self.invoke(shell, self.update_script, folder, success=False)
+                result = self.invoke(shell, self.update_script, folder, success=False)
+                self.assertIn(b"not found", result.stderr)
+                self.assertIn(b"https://github.com/maximiliamus/context-commands#install", result.stderr)
                 self.assertFalse(target.exists())
                 for content in ("# Context Commands\nOld version without marker.\n",
                                 "# Context Commands\n" + MARKER + "\n" + MARKER + "\n"):
-                    original = content.encode("utf-8")
+                    original = versioned(content).encode("utf-8")
                     target.write_bytes(original)
                     result = self.invoke(shell, self.update_script, folder, success=False)
                     self.assertIn(b"exactly one", result.stderr)
                     self.assertEqual(target.read_bytes(), original)
+
+    def test_same_version_skips_both_scripts_without_comparing_body(self):
+        # Neither local nor downloaded bodies are valid definitions: equal versions still skip.
+        self.download.write_text(versioned("Remote body without a heading or marker.\n", self.available_version),
+                                 encoding="utf-8")
+        body = "# Context Commands\nLocal edits, deliberately without a marker.\n"
+        examples = (
+            versioned(body, self.available_version),
+            f"---\ntitle: local\nversion: '{self.available_version}'\n---\n\n" + body,
+            f'---\r\nversion : "{self.available_version}" # installed\r\nother: value\r\n---\r\n\r\n' + body,
+        )
+        for shell in self.shells:
+            for script in (self.install_script, self.update_script):
+                for example in examples:
+                    with self.subTest(shell=shell, script=script, metadata=example.splitlines()[:4]):
+                        folder = self.project()
+                        target = folder / "CONTEXT_COMMANDS.md"
+                        original = example.encode("utf-8")
+                        target.write_bytes(original)
+                        os.utime(target, ns=(1_000_000_000, 1_000_000_000))
+                        before = target.stat()
+                        result = self.invoke(shell, script, folder, via_url=True)
+                        self.assertIn(b"Nothing was changed", result.stdout)
+                        self.assertEqual(target.read_bytes(), original)
+                        self.assertEqual(target.stat().st_mtime_ns, before.st_mtime_ns)
+                        self.assertEqual(target.stat().st_ino, before.st_ino)
+
+    def test_unknown_local_version_updates_and_preserves_custom_commands(self):
+        tail = "\r\n\r\n`mine`\r\nKeep my Unicode rule: \u2713.\r\n"
+        body = "# Context Commands\nOld content.\n" + MARKER + tail
+        upstream = self.download.read_text(encoding="utf-8").partition(MARKER)[0] + MARKER
+        for shell in self.shells:
+            for original in (body, "---\ntitle: local\n---\n\n" + body):
+                with self.subTest(shell=shell, metadata=original.splitlines()[:3]):
+                    folder = self.project()
+                    target = folder / "CONTEXT_COMMANDS.md"
+                    target.write_bytes(original.encode("utf-8"))
+                    self.invoke(shell, self.install_script, folder, success=False)
+                    self.assertEqual(target.read_bytes(), original.encode("utf-8"))
+                    self.invoke(shell, self.update_script, folder, via_url=True)
+                    self.assertEqual(target.read_bytes(), (upstream + tail).encode("utf-8"))
+
+    def test_invalid_local_version_metadata_is_rejected(self):
+        body = "# Context Commands\n" + MARKER + "\n"
+        for shell in self.shells:
+            for original in (versioned(body, ""), versioned(body, "# pending"),
+                             "---\nversion: first\nversion: second\n---\n\n" + body):
+                for script in (self.install_script, self.update_script):
+                    with self.subTest(shell=shell, script=script, original=original):
+                        folder = self.project()
+                        target = folder / "CONTEXT_COMMANDS.md"
+                        target.write_bytes(original.encode("utf-8"))
+                        result = self.invoke(shell, script, folder, success=False)
+                        self.assertIn(b"Installed CONTEXT_COMMANDS.md", result.stderr)
+                        self.assertIn(b"version metadata", result.stderr)
+                        self.assertEqual(target.read_bytes(), original.encode("utf-8"))
 
 
 @unittest.skipUnless(SHELLS, "PowerShell is required for script integration checks")
@@ -291,13 +373,27 @@ class InstallationTests(InstallationCases, unittest.TestCase):
         for shell in self.shells:
             with self.subTest(shell=shell):
                 folder = self.project()
-                original = ("# Context Commands\nOld main content.\n" + MARKER +
-                            "\n\n`mine`\nKeep this command even when saving fails.\n").encode("utf-8")
+                original = versioned("# Context Commands\nOld main content.\n" + MARKER +
+                                     "\n\n`mine`\nKeep this command even when saving fails.\n").encode("utf-8")
                 target = folder / "CONTEXT_COMMANDS.md"
                 target.write_bytes(original)
                 result = self.invoke(shell, self.update_script, folder, success=False, lock_target=True)
+                self.assertIn(b"Could not update CONTEXT_COMMANDS.md", result.stderr)
                 self.assertIn(b"Replace", result.stderr, "The failure must occur during file replacement")
                 self.assertEqual(target.read_bytes(), original)
+
+    @unittest.skipUnless(os.name == "nt", "Windows file sharing semantics are required")
+    def test_same_version_does_not_replace_a_locked_target(self):
+        for shell in self.shells:
+            with self.subTest(shell=shell):
+                folder = self.project()
+                target = folder / "CONTEXT_COMMANDS.md"
+                original = self.download.read_bytes()
+                target.write_bytes(original)
+                before = target.stat()
+                self.invoke(shell, self.update_script, folder, lock_target=True)
+                self.assertEqual(target.read_bytes(), original)
+                self.assertEqual(target.stat().st_mtime_ns, before.st_mtime_ns)
 
 
 if __name__ == "__main__":

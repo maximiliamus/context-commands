@@ -42,6 +42,15 @@ def prepare(args):
         if unknown:
             raise SystemExit("Unknown case id(s): " + ", ".join(sorted(unknown)))
         cases = [case for case in cases if case["id"] in selected]
+    selected_commands = []
+    if args.command:
+        aliases = spec.get("command_aliases", {})
+        known = {command for case in cases for command in case.get("commands", [])}
+        unknown = set(args.command) - known - set(aliases)
+        if unknown:
+            raise SystemExit("Unknown command(s): " + ", ".join(sorted(unknown)))
+        selected_commands = list(dict.fromkeys(aliases.get(command, command) for command in args.command))
+        cases = [case for case in cases if set(selected_commands).intersection(case.get("commands", []))]
     rules = (REPO / "CONTEXT_COMMANDS.md").read_text(encoding="utf-8")
     for case in cases:
         if case["behavior"] != "no_edits" and not case.get("behavior_parameters"):
@@ -81,9 +90,9 @@ def prepare(args):
                 trial_rules = rules.partition(marker)[0] + marker + "\n\n" + custom["content"]
             (folder / "RULES.md").write_text(trial_rules, encoding="utf-8", newline="\n")
             prefix += "Read RULES.md and apply its definitions. "
-        prefix += ("Work only here; you may change only src/, memory/, and response.md when requested "
+        prefix += ("Work only here; you may change only src/ and memory/ when requested "
                    "or required by an already assigned task. Do not read other folders. "
-                   "Save your answer in response.md and repeat it in your final response. Respond in English.")
+                   "Return your answer in your final response. Respond in English.")
         prompt = prefix + "\n\n" + case["request"]
         (folder / "prompt.txt").write_text(prompt, encoding="utf-8", newline="\n")
         protected = {name: sha((folder / name).read_bytes()) if (folder / name).is_file() else None
@@ -96,33 +105,39 @@ def prepare(args):
                        "before_texts": {name: body.decode("utf-8").replace("\r\n", "\n") for name, body in files.items()}})
     write_json(output / "manifest.json", {"schema_version": 3, "label": args.label,
                "model": args.model, "language": "English", "seed": args.seed, "repeats": args.repeats,
+               "response_recording": "final",
                "rules_sha256": sha(rules.encode("utf-8")), "rules_hash_format": "UTF-8 with LF newlines", "rules": rules,
                "literal_line": spec["literal_line"], "selected_cases": [case["id"] for case in cases],
+               "selected_commands": selected_commands,
                "planned_trials": len(trials), "trials": trials})
     print(f"Prepared {len(trials)} trials in {output}")
     print("Launch each manifest prompt in a fresh participant without inherited conversation history.")
 
 
 
-def participant_response(folder):
+def participant_response(folder, prefer_final=False):
     """Read a saved answer or an actual completed final captured by the operator.
 
-    A receipt final preserves a failed save; it must never create response.md.
+    A receipt final is captured verbatim; it must never create response.md.
     """
-    answer_file = folder / "response.md"
-    if answer_file.is_file():
-        body = answer_file.read_bytes()
-        return {"text": body.decode("utf-8").replace("\r\n", "\n"),
-                "sha256": sha(body), "source": "participant_file", "saved": True}
-    receipt_file = folder / "receipt.json"
-    if receipt_file.is_file():
-        receipt = read_json(receipt_file)
-        final = receipt.get("raw_final_response")
-        if (str(receipt.get("completion_state", "")).startswith("completed")
-                and isinstance(final, str) and final.strip()):
-            return {"text": final, "sha256": sha(final.encode("utf-8")),
-                    "source": "participant_final", "saved": False}
-    return None
+    def from_file():
+        answer_file = folder / "response.md"
+        if answer_file.is_file():
+            body = answer_file.read_bytes()
+            return {"text": body.decode("utf-8").replace("\r\n", "\n"),
+                    "sha256": sha(body), "source": "participant_file", "saved": True}
+
+    def from_final():
+        receipt_file = folder / "receipt.json"
+        if receipt_file.is_file():
+            receipt = read_json(receipt_file)
+            final = receipt.get("raw_final_response")
+            if (str(receipt.get("completion_state", "")).startswith("completed")
+                    and isinstance(final, str) and final.strip()):
+                return {"text": final, "sha256": sha(final.encode("utf-8")),
+                        "source": "participant_final", "saved": False}
+
+    return from_final() if prefer_final else (from_file() or from_final())
 
 
 def file_behavior_pass(trial, changed, after):
@@ -133,6 +148,8 @@ def file_behavior_pass(trial, changed, after):
     if not parameters:
         raise SystemExit("Missing behavior parameters for trial: " + trial["id"])
     path = parameters["path"]
+    if kind == "rename" and parameters.get("allow_unchanged") and not changed:
+        return True
     if changed != [path]:
         return False
     result = after.get(path, "")
@@ -158,7 +175,7 @@ def collect(run):
     known = {"CONTEXT.md", "RULES.md", "prompt.txt", "response.md", "changes.diff", "observation.json", "receipt.json"}
     for trial in manifest["trials"]:
         folder = run / trial["folder"]
-        response = participant_response(folder)
+        response = participant_response(folder, prefer_final=manifest.get("response_recording") == "final")
         if response is None:
             continue
         paths = sorted({*trial["source_hashes"], *[path.relative_to(folder).as_posix()
@@ -186,7 +203,8 @@ def collect(run):
         protected_after = {name: sha((folder / name).read_bytes()) if (folder / name).is_file() else None
                            for name in protected_before}
         protected_changes = [name for name in protected_before if protected_after[name] != protected_before[name]]
-        behavior_pass = response["saved"] and file_pass and not unexpected and not protected_changes
+        recorded = response["saved"] or manifest.get("response_recording") == "final"
+        behavior_pass = recorded and file_pass and not unexpected and not protected_changes
         answer = response["text"]
         row = {"id": trial["id"], "case": trial["case"], "condition": trial["condition"],
                "criterion": trial["criterion"], "behavior": trial["behavior"], "changed_files": changed,
@@ -217,8 +235,10 @@ def report(args):
                          "content_pass": sum(row["content_pass"] is True for row in selected),
                          "behavior_pass": sum(row["behavior_pass"] for row in selected),
                          "full_pass": sum(row["full_pass"] is True for row in selected)}
+    selected_commands = manifest.get("selected_commands", [])
     write_json(run / "results.json", {"label": manifest["label"], "model": manifest["model"],
-               "rules_sha256": manifest["rules_sha256"], "summary": summary, "trials": rows})
+               "rules_sha256": manifest["rules_sha256"], "selected_commands": selected_commands,
+               "selected_cases": manifest.get("selected_cases", []), "summary": summary, "trials": rows})
     stream = io.StringIO(newline="")
     fields = ["id", "case", "condition", "content_pass", "behavior_pass", "full_pass", "response_source", "response_saved", "changed_files", "protected_input_changes", "content_note"]
     writer = csv.DictWriter(stream, fieldnames=fields, lineterminator="\n")
@@ -230,6 +250,8 @@ def report(args):
         writer.writerow(item)
     (run / "results.csv").write_text(stream.getvalue(), encoding="utf-8", newline="\n")
     lines = ["# Agent Benchmark Results", "", f"Run: {manifest['label']}", f"Model/configuration: {manifest['model']}",
+             f"Commands: {', '.join(selected_commands) if selected_commands else 'all or selected by scenario'}",
+             f"Scenarios: {len(manifest.get('selected_cases', []))}",
              "", f"Completed: {len(rows)}/{manifest['planned_trials']}. Content review is separate from file checks.", "",
              "| Condition | Completed | Content reviewed | Content passed | File checks passed | Full pass |",
              "| --- | ---: | ---: | ---: | ---: | ---: |"]
@@ -254,7 +276,8 @@ def grade(args):
     manifest = read_json(run / "manifest.json")
     if args.trial not in {trial["id"] for trial in manifest["trials"]}:
         raise SystemExit("Unknown trial id")
-    if participant_response(run / next(t["folder"] for t in manifest["trials"] if t["id"] == args.trial)) is None:
+    if participant_response(run / next(t["folder"] for t in manifest["trials"] if t["id"] == args.trial),
+                            prefer_final=manifest.get("response_recording") == "final") is None:
         raise SystemExit("The participant has no saved answer or captured completed final")
     path = run / "grades.json"
     grades = read_json(path) if path.exists() else {}
@@ -272,7 +295,10 @@ def main():
     p.add_argument("--model", default="Not recorded; fill in the actual configuration")
     p.add_argument("--seed", type=int, default=202610182)
     p.add_argument("--repeats", type=int, default=1)
-    p.add_argument("--cases", nargs="+", metavar="CASE_ID", help="Run only these scenario IDs; default: all")
+    selection = p.add_mutually_exclusive_group()
+    selection.add_argument("--cases", nargs="+", metavar="CASE_ID", help="Run only these scenario IDs; default: all")
+    selection.add_argument("--command", action="append", metavar="MARKER",
+                           help="Run scenarios for this command; repeat for multiple commands")
     p.set_defaults(action=prepare)
     p = commands.add_parser("report", help="Collect file evidence and show current results")
     p.add_argument("run", type=Path)

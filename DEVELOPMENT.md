@@ -38,10 +38,15 @@ should express intent without requiring a new command for every variation.
 
 ## Keep Discussion Separate from Action
 
-A block marked with a context command is always discussion, including when it
-uses imperative wording or relates to an earlier task. External changes need a
-separate explicit request without context commands. Literal markers in quoted
-or supplied content remain content.
+A context command puts the chat in discussion mode, including after an earlier
+action. The mode persists through later messages until the operator clearly
+expresses an intent to have a specific action performed, including by confirming
+a proposal. Judge authorization by meaning in context.
+General agreement does not authorize action. Propose new actions and wait for
+authorization; clarify unclear intent or scope. A marked
+block, including an imperative or a reference to earlier work, is not an action
+request. Quoted or supplied literal text is content. Work already started may
+continue unless stopped.
 
 For `mmm`, derive a future instruction, show its wording and interpretation,
 and ask whether to add it. Save only after explicit confirmation, preserving
@@ -59,6 +64,13 @@ setup as a single document.
 
 The custom marker separates the maintained reference from user definitions.
 Updates replace the content before the marker and preserve everything after it.
+
+Include the release version in YAML front matter in the distributed file. Keep
+it consistent with the release tag, and change it whenever distributed
+definitions change. Installation and update
+decisions compare only the `version` values; matching versions leave the file
+untouched even when its body has local edits. Do not use body comparisons or
+content hashes to decide whether to update.
 
 Keep command definitions and examples in that reference, setup and usage entry
 points in [README.md](README.md), and design rationale here. Keep instructions

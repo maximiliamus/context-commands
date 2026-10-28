@@ -35,12 +35,16 @@ class HarnessTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0, result.stdout)
         return result
 
-    def prepare(self, cases=("reference",), script=None, output=None):
+    def prepare(self, cases=("reference",), script=None, output=None, response_recording="file"):
         script = script or REPO / "tests/benchmark.py"
         output = output or self.run
         self.invoke(script, "prepare", "--output", output, "--label", "Unit fixture, not a model run",
                     "--cases", *cases)
-        return json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+        manifest_path = output / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["response_recording"] = response_recording
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        return manifest
 
     def report(self, script=None):
         self.invoke(script or REPO / "tests/benchmark.py", "report", self.run)
@@ -77,7 +81,7 @@ class HarnessTests(unittest.TestCase):
     def test_default_plan_and_pending_results(self):
         self.invoke(REPO / "tests/benchmark.py", "prepare", "--output", self.run)
         manifest = json.loads((self.run / "manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["planned_trials"], 74)
+        self.assertEqual(manifest["planned_trials"], 98)
         self.assertEqual(manifest["schema_version"], 3)
         results = self.report()
         self.assertFalse(results["trials"])
@@ -94,7 +98,9 @@ class HarnessTests(unittest.TestCase):
             if trial["condition"] == "explicit":
                 rules = path.read_text(encoding="utf-8")
                 main, marker, tail = rules.partition("<!-- custom-context-commands -->")
-                self.assertTrue(main.startswith("# Context Commands\n"))
+                expected_main = (REPO / "CONTEXT_COMMANDS.md").read_text(encoding="utf-8").partition(
+                    "<!-- custom-context-commands -->")[0]
+                self.assertEqual(main, expected_main)
                 self.assertTrue(marker)
                 self.assertEqual(tail, "\n\n" + custom["content"])
                 self.assertIn("Read RULES.md and apply its definitions.", trial["prompt"])
@@ -191,8 +197,46 @@ class HarnessTests(unittest.TestCase):
         self.prepare()
         self.invoke(REPO / "tests/benchmark.py", "prepare", "--output", self.run, success=False)
 
+    def test_select_commands_includes_related_scenarios_and_both_conditions(self):
+        self.invoke(REPO / "tests/benchmark.py", "prepare", "--output", self.run,
+                    "--command", ";;;", "--command", ":::")
+        manifest = json.loads((self.run / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["selected_commands"], [";;;", ":::"])
+        self.assertEqual(set(manifest["selected_cases"]), {
+            "quoted_content", "operator_understanding_correct", "operator_understanding_incorrect",
+            "understanding", "hypothesis_restatement",
+        })
+        self.assertEqual(manifest["planned_trials"], 10)
+        for case in manifest["selected_cases"]:
+            self.assertEqual({trial["condition"] for trial in manifest["trials"] if trial["case"] == case},
+                             {"implicit", "explicit"})
+        results = self.report()
+        self.assertEqual(results["selected_commands"], [";;;", ":::"])
+        self.assertIn("Commands: ;;;, :::", (self.run / "report.md").read_text(encoding="utf-8"))
+
+    def test_command_selection_accepts_aliases_and_rejects_invalid_input(self):
+        canonical = self.root / "canonical"
+        alias = self.root / "alias"
+        self.invoke(REPO / "tests/benchmark.py", "prepare", "--output", canonical, "--command=-->")
+        self.invoke(REPO / "tests/benchmark.py", "prepare", "--output", alias, "--command", "rnm")
+        first = json.loads((canonical / "manifest.json").read_text(encoding="utf-8"))
+        second = json.loads((alias / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(first["selected_commands"], ["-->"])
+        self.assertEqual(first["selected_cases"], second["selected_cases"])
+        self.assertTrue({"arrow", "arrow_alias", "pagination_discuss", "quoted_content"}
+                        <= set(first["selected_cases"]))
+        result = self.invoke(REPO / "tests/benchmark.py", "prepare", "--output", self.run,
+                             "--command", "unknown", success=False)
+        self.assertIn("Unknown command", result.stderr)
+        self.assertFalse(self.run.exists())
+        result = self.invoke(REPO / "tests/benchmark.py", "prepare", "--output", self.run,
+                             "--command", ";;;", "--cases", "help", success=False)
+        self.assertIn("not allowed with argument", result.stderr)
+        self.assertFalse(self.run.exists())
+
     def test_memory_writes_require_confirmation(self):
-        manifest = self.prepare(cases=("memory", "memory_confirm", "memory_skip", "memory_cancel"))
+        manifest = self.prepare(cases=("memory", "memory_confirm", "memory_confirm_yes", "memory_skip", "memory_cancel"))
+        confirmations = {"memory_confirm", "memory_confirm_yes"}
         original = (REPO / "tests/fixtures/memory/instructions.md").read_bytes()
         for trial in manifest["trials"]:
             folder = self.run / trial["folder"]
@@ -202,24 +246,40 @@ class HarnessTests(unittest.TestCase):
             (folder / "memory/instructions.md").write_bytes(
                 original + b"\n- Include a shared requestId in request log entries.\n")
         for row in self.report()["trials"]:
-            self.assertEqual(row["behavior_pass"], row["case"] == "memory_confirm")
+            self.assertEqual(row["behavior_pass"], row["case"] in confirmations)
         for trial in manifest["trials"]:
-            if trial["case"] != "memory_confirm":
+            if trial["case"] not in confirmations:
                 (self.run / trial["folder"] / "memory/instructions.md").write_bytes(original)
         self.assertTrue(all(row["behavior_pass"] for row in self.report()["trials"]))
 
-    def test_marked_blocks_do_not_authorize_edits(self):
-        manifest = self.prepare(cases=("imperative_discussion", "established_task", "explicit_edit"))
+    def test_discussion_and_followup_file_boundaries(self):
+        manifest = self.prepare(cases=("imperative_discussion", "established_task", "explicit_edit",
+                                       "agreement_followup", "explicit_followup", "confirm_action", "do_it_followup",
+                                       "continue_authorized_work", "discussion_mode_persists",
+                                       "discussion_mode_exit", "discussion_mode_reentry", "ambiguous_do_it"))
+        allowed = {"explicit_edit", "explicit_followup", "confirm_action", "continue_authorized_work",
+                   "discussion_mode_exit", "do_it_followup"}
         for trial in manifest["trials"]:
             folder = self.run / trial["folder"]
             context = (folder / "CONTEXT.md").read_text(encoding="utf-8")
-            self.assertEqual("Earlier task context:" in context, trial["case"] == "established_task")
+            self.assertEqual("Earlier task context:" in context,
+                             trial["case"] in {"established_task", "continue_authorized_work"})
             source = folder / "src/users.js"
             source.write_text(source.read_text(encoding="utf-8").replace("getData", "fetchUsers"),
                               encoding="utf-8", newline="\n")
             (folder / "response.md").write_text("Unit fixture, not an agent response.\n", encoding="utf-8")
         for row in self.report()["trials"]:
-            self.assertEqual(row["behavior_pass"], row["case"] == "explicit_edit")
+            self.assertEqual(row["behavior_pass"], row["case"] in allowed)
+        original = (REPO / "tests/fixtures/src/users.js").read_bytes()
+        for trial in manifest["trials"]:
+            if trial["case"] in {"agreement_followup", "continue_authorized_work",
+                                 "discussion_mode_persists", "discussion_mode_exit", "discussion_mode_reentry",
+                                 "ambiguous_do_it"}:
+                (self.run / trial["folder"] / "src/users.js").write_bytes(original)
+        self.assertTrue(all(row["behavior_pass"] for row in self.report()["trials"]
+                            if row["case"] in {"agreement_followup", "continue_authorized_work",
+                                               "discussion_mode_persists", "discussion_mode_exit", "discussion_mode_reentry",
+                                               "ambiguous_do_it"}))
 
     def test_read_only_input_changes_cannot_pass(self):
         manifest = self.prepare()
@@ -277,11 +337,10 @@ class HarnessTests(unittest.TestCase):
         self.export(script=clone / "tests/export_reference.py")
 
     def completed_receipt_fixture(self):
-        manifest = self.prepare()
+        manifest = self.prepare(response_recording="final")
         for trial in manifest["trials"]:
-            receipt = {"completion_state": "completed with environmental write failure",
-                       "raw_final_response": "Unit receipt fixture; not a model response.\n",
-                       "response_saved": False}
+            receipt = {"completion_state": "completed",
+                       "raw_final_response": "Unit receipt fixture; not a model response.\n"}
             (self.run / trial["folder"] / "receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
             self.invoke(REPO / "tests/benchmark.py", "grade", self.run, trial["id"], "pass",
                         "--note", "Synthetic fixture for collection regression only")
@@ -293,8 +352,8 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(len(results["trials"]), 2)
         for row in results["trials"]:
             self.assertTrue(row["content_pass"])
-            self.assertFalse(row["behavior_pass"])
-            self.assertFalse(row["full_pass"])
+            self.assertTrue(row["behavior_pass"])
+            self.assertTrue(row["full_pass"])
             self.assertFalse(row["response_saved"])
             self.assertEqual(row["response_source"], "participant_final")
         self.export()
@@ -303,6 +362,31 @@ class HarnessTests(unittest.TestCase):
                 self.assertFalse((base / trial["folder"] / "response.md").exists())
                 self.assertTrue((base / trial["folder"] / "receipt.json").is_file())
         self.assertIn("/receipt.json)", (self.run / "report.md").read_text(encoding="utf-8"))
+
+    def test_legacy_missing_response_file_still_fails_file_check(self):
+        manifest = self.completed_receipt_fixture()
+        manifest.pop("response_recording")
+        (self.run / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        for row in self.report()["trials"]:
+            self.assertFalse(row["behavior_pass"])
+            self.assertFalse(row["full_pass"])
+        self.export()
+
+    def test_final_recording_prefers_actual_final_over_response_file(self):
+        manifest = self.completed_receipt_fixture()
+        trial = manifest["trials"][0]
+        folder = self.run / trial["folder"]
+        (folder / "response.md").write_text("Different unit fixture.\n", encoding="utf-8")
+        row = next(row for row in self.report()["trials"] if row["id"] == trial["id"])
+        self.assertEqual(row["response_source"], "participant_final")
+        self.assertEqual(row["response"], "Unit receipt fixture; not a model response.\n")
+        self.assertTrue(row["behavior_pass"])
+
+    def test_final_recording_requires_a_completed_final(self):
+        manifest = self.prepare(response_recording="final")
+        folder = self.run / manifest["trials"][0]["folder"]
+        (folder / "response.md").write_text("A file alone is not a final.\n", encoding="utf-8")
+        self.assertFalse(self.report()["trials"])
 
     def test_export_rejects_captured_final_changes_after_report(self):
         manifest = self.completed_receipt_fixture()

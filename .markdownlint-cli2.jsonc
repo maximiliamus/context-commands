@@ -4,6 +4,7 @@
   "ignores": [".benchmark/**", "tests/results/**", "node_modules/**"],
   "config": {
     // Keep executable commands and example prompts ready to copy.
-    "MD013": { "code_blocks": false }
+    "MD013": { "code_blocks": false },
+    "MD024": { "siblings_only": true }
   }
 }

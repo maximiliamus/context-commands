@@ -18,10 +18,12 @@ fixtures, or stored reference runs while executing it.
    more than one independent attempt per cell. Preparation freezes the current
    definitions, criteria, prompts, and initial file hashes in the run manifest.
 
-   The default includes all 37 scenarios in both conditions (74 trials). For a
-   targeted supplementary run, add --cases followed by scenario IDs, for example
-   --cases help pagination_discuss quoted_content. Report that selected scope
-   rather than describing a subset as the full suite.
+   The default includes all 49 scenarios in both conditions (98 trials). For a
+   targeted run, use repeated --command options for markers, for example
+   --command ';;;' --command ':::'. For -->, use '--command=-->'. Each selection
+   includes related combinations, aliases and follow-ups. Alternatively, use
+   --cases with exact scenario IDs. Do not combine these options. Report the
+   selected scope rather than describing a subset as the full suite.
 
 ## Execute
 
@@ -35,18 +37,17 @@ fixtures, or stored reference runs while executing it.
    definitions. If genuinely fresh participant contexts are unavailable, report
    that limitation instead of presenting a contaminated run as valid. Record
    participant identity, actual dispatched prompt, settings if known, and
-   completion state in each trial's receipt.json. If a prompt differs from the
-   plan, record the difference.
+   completion state, and the exact final reply in each trial's receipt.json as
+   raw_final_response. If a prompt differs from the plan, record the difference.
 3. Participants may read only their trial project and may write only the
    locations allowed in their prompt. Do not answer clarification questions or
    supply missing marker definitions. Preserve questions as part of the record
    and let the participant finish without experimental feedback. Keep raw
    responses unchanged. A failed or missing response must remain visible; do not
-   silently rerun it until it passes. If saving response.md fails, record the
-   exact final reply as raw_final_response and a completion_state starting with
-   completed in receipt.json, along with the save failure. Do not create
-   response.md on the participant's behalf. The collector reports this actual
-   final separately and fails the file check.
+   silently rerun it until it passes. Record a completion_state starting with
+   completed only when the participant has finished. Do not create response.md
+   on the participant's behalf. The collector uses the recorded final response
+   without treating the absence of response.md as a project-file change.
 
 ## Review and Report
 
@@ -71,7 +72,7 @@ fixtures, or stored reference runs while executing it.
    content success merely because a file was changed or because the response
    exists. For ***, judge concision and preservation of essential conditions
    without imposing a fixed word limit. For hhh, check the frozen criterion:
-   16 base entries, or 19 when custom definitions are loaded. Check purposes,
+   17 base entries, or 20 when custom definitions are loaded. Check purposes,
    adjacent alias lines with the shared purpose on the last alias line, inline
    code and Markdown hard line breaks (two trailing spaces or a trailing
    backslash). Check raw line lengths including the break characters.
@@ -80,6 +81,9 @@ fixtures, or stored reference runs while executing it.
    and a confirmation question without saving. Confirmation, skip and cancel
    cases include the prior proposal in CONTEXT.md. Only confirmation may save
    it; check the saved wording and preservation of earlier instructions.
+   For continuing already started work and mode exit, either no edits or the
+   authorized rename is allowed; check that any reported status matches the
+   actual file.
 3. Regenerate the report after grading. Show the operator the local report.md
    link, completed/expected trials, separate content and file counts, failures,
    and relevant limitations. Do not claim completion while trials or content
